@@ -4,6 +4,12 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from passlib.context import CryptContext
 
+# ------------------------------
+# CORS qo‘shish – MUHIM!
+# ------------------------------
+from fastapi.middleware.cors import CORSMiddleware
+
+
 # -----------------------------------
 # DataBase
 # -----------------------------------
@@ -12,6 +18,7 @@ DATABASE_URL = "sqlite:///./users.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
+
 
 # -----------------------------------
 # User model (DB)
@@ -23,7 +30,9 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password = Column(String)
 
+
 Base.metadata.create_all(bind=engine)
+
 
 # -----------------------------------
 # Password tools
@@ -36,6 +45,7 @@ def hash_password(password: str):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 # -----------------------------------
 # Request Models
 # -----------------------------------
@@ -47,10 +57,22 @@ class LoginModel(BaseModel):
     email: EmailStr
     password: str
 
+
 # -----------------------------------
 # FastAPI app
 # -----------------------------------
 app = FastAPI(title="Register/Login API")
+
+# ------------------------------
+# CORS SETTINGS – SHUNI QO‘SHMASANG XATO BO‘LADI
+# ------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # frontend 5500 portdan kirishi uchun
+    allow_credentials=True,
+    allow_methods=["*"],      # GET, POST, PUT, DELETE – hammasi
+    allow_headers=["*"],      # JSON body va tokenlarni ruxsat beradi
+)
 
 
 # Dependency (DB session)
@@ -68,7 +90,6 @@ def get_db():
 @app.post("/register")
 def register_user(user: RegisterModel, db: Session = Depends(get_db)):
 
-    # Check if user already exists
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
